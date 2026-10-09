@@ -348,6 +348,8 @@ PdfCraft is a clean-room implementation. Its behaviour comes from the ISO 32000 
 
 ## Get started
 
+Building needs Rust 1.95 or later (`rustup update stable`).
+
 ```sh
 git clone https://github.com/storytold/pdfcraft
 cd pdfcraft
