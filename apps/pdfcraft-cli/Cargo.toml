@@ -4,6 +4,7 @@ description = "PdfCraft command-line tool: inspect, render and robustness-check 
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 [[bin]]
 name = "pdfcraft-cli"

@@ -4,6 +4,7 @@ description = "PdfCraft in the browser (wasm32; build with `trunk build --releas
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 publish = false
 
 [lints]
