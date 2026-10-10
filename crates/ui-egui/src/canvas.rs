@@ -193,6 +193,8 @@ pub struct DocView {
     pub highlight_fields: bool,
     pub page_input: String,
     pub notice_dismissed: bool,
+    /// The user has been told that the form's scripts were turned off (it is said once).
+    pub scripts_off_noted: bool,
     /// Two-page view: show the first page alone, as a cover (View ▸ Page display).
     pub cover: bool,
     /// Previous view / Next view: pages visited before (and after, once going back).
@@ -348,6 +350,7 @@ impl DocView {
             highlight_fields: defaults.highlight_fields,
             page_input: "1".into(),
             notice_dismissed: false,
+            scripts_off_noted: false,
             cover: false,
             back: Vec::new(),
             forward: Vec::new(),
@@ -1209,6 +1212,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
         Some(Notice::Security) => app.dialog = Some(crate::Dialog::Properties(crate::PropsTab::Security)),
         Some(Notice::Signatures) => app.right = Some(RightPanel::Signatures),
         Some(Notice::FieldHighlights(on)) => app.view_defaults.highlight_fields = on,
+        Some(Notice::Console) => app.dialog = Some(crate::Dialog::JsConsole),
         None => {}
     }
     // No dialog, close prompt or palette over the page: only then does page input count.
@@ -2300,10 +2304,12 @@ enum Notice {
     Repairs,
     /// Highlight fields was turned on or off.
     FieldHighlights(bool),
+    /// Open the JavaScript console (the form's scripts were turned off; the error is there).
+    Console,
 }
 
 /// The notice bar above the pages: the signature status first (Acrobat's signature bar), then
-/// security, forms and warnings.
+/// a form's scripts having been turned off, security, forms and warnings.
 fn notices(
     view: &mut DocView,
     doc: &pdfcraft_engine::Document,
@@ -2335,8 +2341,14 @@ fn notices(
     }
     let mut open_security = false;
     let mut open_repairs = false;
+    let mut open_console = false;
     let mut toggled = None;
-    let msg = if secured {
+    // A form whose scripts were turned off no longer calculates or answers its buttons: that
+    // comes before what else there is to say about the document.
+    let scripts_off = doc.xfa_scripts_off();
+    let msg = if scripts_off {
+        Some(("triangle-alert", crate::js_ui::scripts_off_notice(), true))
+    } else if secured {
         Some(("lock", tl!("This document is secured. Some changes are restricted by its security settings.").to_string(), false))
     } else if let Some(x) = xfa {
         let lang = crate::i18n::current();
@@ -2379,7 +2391,8 @@ fn notices(
     egui::Frame::NONE.fill(t.accent_soft).inner_margin(egui::Margin::symmetric(14, 7)).show(ui, |ui| {
         ui.horizontal(|ui| {
             ui.add(icons::image(icon, 16.0, t.accent_text));
-            ui.label(egui::RichText::new(text).color(t.text));
+            // The buttons are placed first, from the right: the text gets what they leave and
+            // wraps there (a long notice, or a long translation, ran under the buttons).
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if icons::button(ui, "x", 22.0, false, tl!("Dismiss")).clicked() {
                     view.notice_dismissed = true;
@@ -2391,17 +2404,26 @@ fn notices(
                         toggled = Some(Notice::FieldHighlights(view.highlight_fields));
                     }
                 }
+                if scripts_off && crate::widgets::pill_button(ui, tl!("JavaScript Console"), false).clicked() {
+                    open_console = true;
+                }
                 if secured && crate::widgets::pill_button(ui, tl!("Security settings"), false).clicked() {
                     open_security = true;
                 }
                 if repaired && !secured && info.fields.is_empty() && crate::widgets::pill_button(ui, tl!("Details"), false).clicked() {
                     open_repairs = true;
                 }
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+                    ui.add(egui::Label::new(egui::RichText::new(text).color(t.text)).wrap());
+                });
             });
         });
     });
     if open_repairs {
         return Some(Notice::Repairs);
+    }
+    if open_console {
+        return Some(Notice::Console);
     }
     open_security.then_some(Notice::Security).or(toggled)
 }
