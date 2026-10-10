@@ -30,6 +30,7 @@ fn dir() -> std::path::PathBuf {
 fn harness(dir: std::path::PathBuf) -> Harness<'static, PdfCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
         let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
         app.open_bytes("contract.pdf", None, FIXTURE.to_vec()).expect("opens");
         app.set_option("left", "closed").unwrap();
         app.export_dir_override = Some(dir.to_string_lossy().into_owned());
@@ -155,6 +156,7 @@ fn drawing_a_signature_creating_an_id_signing_and_trusting() {
     // Trusted certificates and the ID list persist.
     let saved = s.persist();
     let mut fresh = PdfCraftApp::new();
+    fresh.set_option("language", "en").unwrap();
     fresh.restore(&saved);
     assert_eq!((fresh.digital_ids.len(), fresh.session.trusted_certificates().len()), (1, 1));
 }
@@ -248,6 +250,7 @@ fn clicking_an_empty_signature_field_signs_it() {
 #[test]
 fn os_store_identities_are_not_persisted() {
     let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
     for path in ["windows:Store signer", "keychain:Store signer", "file-id.p12"] {
         app.digital_ids.push(pdfcraft_ui_egui::DigitalIdEntry {
             path: path.into(),
@@ -262,6 +265,7 @@ fn os_store_identities_are_not_persisted() {
     assert_eq!(settings["digital_ids"].as_array().unwrap().len(), 1);
     assert_eq!(settings["digital_ids"][0]["path"], "file-id.p12");
     let mut restored = PdfCraftApp::new();
+    restored.set_option("language", "en").unwrap();
     restored.restore(&saved);
     assert_eq!(restored.digital_ids.len(), 1);
     assert_eq!(restored.digital_ids[0].path, "file-id.p12");
@@ -292,4 +296,41 @@ fn windows_store_identity_does_not_ask_for_a_file_password() {
     h.run_steps(3);
     assert_eq!(h.state().dialog, Some(Dialog::Sign));
     assert!(h.state().sign_draft.as_ref().unwrap().error.as_ref().unwrap().contains("Windows certificate store"));
+}
+
+/// Certificate names are as long as their owners made them: the picker cuts both lines of a
+/// row with "…" instead of painting them past the dialog's edge.
+#[test]
+fn long_digital_id_names_stay_inside_the_picker() {
+    let mut h = harness(dir());
+    h.state_mut().start_signing(0, None, None, None);
+    let long = "a certificate subject much longer than the picker is wide ".repeat(4);
+    h.state_mut().digital_ids.push(pdfcraft_ui_egui::DigitalIdEntry {
+        path: "windows:No Such Signer".into(),
+        name: long.clone(),
+        issuer: long,
+        email: String::new(),
+        expires: "2030.01.01".into(),
+    });
+    h.state_mut().sign_draft.as_mut().unwrap().step = SignStep::Choose;
+    h.run_steps(3);
+    let right = h.get_by_label("Continue").rect().right();
+    let lines: Vec<_> = h
+        .output()
+        .shapes
+        .iter()
+        .filter_map(|s| match &s.shape {
+            egui::Shape::Text(t) if t.galley.job.text.contains("much longer") => Some(t),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(lines.len(), 2, "the name and the details line");
+    for line in lines {
+        assert!(line.galley.elided, "{}", line.galley.job.text);
+        assert!(
+            line.pos.x + line.galley.size().x <= right,
+            "the line ends at {} but the dialog's buttons end at {right}",
+            line.pos.x + line.galley.size().x
+        );
+    }
 }

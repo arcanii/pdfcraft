@@ -5,13 +5,58 @@
 //! the control channel later) all call `PdfCraftApp::execute`.
 
 use pdfcraft_engine::Edit;
-use pdfcraft_engine::commands::{self, COMMANDS, CommandSpec};
+use pdfcraft_engine::commands::{self, COMMANDS, CommandSpec, Shortcut};
 
 use crate::{
     Dialog, Mode, PdfCraftApp, PropsTab, RightPanel, SaveTarget,
     theme::{ThemeKind, ThemePreference},
     widgets,
 };
+
+/// Keys the document view handles itself (`canvas::shortcuts`), for the View menu, tooltips and
+/// Help ▸ Keyboard shortcuts. Keep them in step with the bindings there.
+pub(crate) const ACTUAL_SIZE: Shortcut = Shortcut::cmd("1");
+pub(crate) const PAGE_LEVEL: Shortcut = Shortcut::cmd("0");
+pub(crate) const FIT_WIDTH: Shortcut = Shortcut::cmd("2");
+pub(crate) const ZOOM_IN: Shortcut = Shortcut::cmd("+");
+pub(crate) const ZOOM_OUT: Shortcut = Shortcut::cmd("−");
+pub(crate) const ROTATE_CW: Shortcut = Shortcut::cmd_shift("+");
+pub(crate) const ROTATE_CCW: Shortcut = Shortcut::cmd_shift("−");
+pub(crate) const PREV_VIEW: Shortcut = Shortcut::cmd("[");
+pub(crate) const NEXT_VIEW: Shortcut = Shortcut::cmd("]");
+pub(crate) const FIND_NEXT: Shortcut = Shortcut::cmd("G");
+pub(crate) const FIND_PREV: Shortcut = Shortcut::cmd_shift("G");
+pub(crate) const COPY: Shortcut = Shortcut::cmd("C");
+pub(crate) const SELECT_ALL: Shortcut = Shortcut::cmd("A");
+pub(crate) const PAGE_PREV: Shortcut = Shortcut::cmd("←");
+pub(crate) const PAGE_NEXT: Shortcut = Shortcut::cmd("→");
+
+/// Whether shortcuts are written the macOS way (`⇧⌘S`) rather than `Ctrl+Shift+S`. egui knows the
+/// platform from the build target, and on the web from the browser's user agent.
+pub(crate) fn mac_shortcuts(ctx: &egui::Context) -> bool {
+    ctx.os() == egui::os::OperatingSystem::Mac
+}
+
+/// How `s` is written on this platform.
+pub(crate) fn shortcut_label(ctx: &egui::Context, s: Shortcut) -> String {
+    s.label(mac_shortcuts(ctx))
+}
+
+/// How a registered command's shortcut is written on this platform ("" without one).
+pub(crate) fn command_shortcut_label(ctx: &egui::Context, id: &str) -> String {
+    commands::command(id).and_then(|c| c.shortcut).map(|s| shortcut_label(ctx, s)).unwrap_or_default()
+}
+
+/// A translated tooltip with a `{key}` placeholder, filled with `s` as written on this platform:
+/// "Zoom in ({key})" → "Zoom in (Ctrl++)".
+pub(crate) fn key_tip(ctx: &egui::Context, template: &str, s: Shortcut) -> String {
+    crate::i18n::fmt(template, &[("key", &shortcut_label(ctx, s))])
+}
+
+/// [`key_tip`] with a registered command's shortcut, so the tooltip names the real binding.
+pub(crate) fn command_tip(ctx: &egui::Context, template: &str, id: &str) -> String {
+    crate::i18n::fmt(template, &[("key", &command_shortcut_label(ctx, id))])
+}
 
 impl PdfCraftApp {
     /// Whether a registered command can run now. The engine judges the document (security,
@@ -85,6 +130,8 @@ impl PdfCraftApp {
                 Some(p) => self.open_recent(&p),
                 None => self.notify_tr("No recent files"),
             },
+            "file.clear_recent" if self.recent.is_empty() => self.notify_tr("No recent files"),
+            "file.clear_recent" => self.recent.clear(),
             "file.pin_folder" => self.pin_folder_dialog(),
             "page.combine" => self.open_combine_tab(),
             "file.save" => {
@@ -180,13 +227,13 @@ impl PdfCraftApp {
             "view.theme.system" => self.set_theme_preference(ThemePreference::System),
             "view.theme.light" => self.set_theme_preference(ThemePreference::Light),
             "view.theme.dark" => self.set_theme_preference(ThemePreference::Dark),
-            "comment.list" => self.right = Some(RightPanel::Comments),
+            "comment.list" => self.choose_right_panel(Some(RightPanel::Comments)),
             tool if crate::comments::CommentTool::from_command(tool).is_some() => {
                 let Some(tool) = crate::comments::CommentTool::from_command(tool) else { return false };
                 self.comment_prefs.group_tool[tool.group()] = tool;
                 self.quick_tool = crate::QuickTool::Comment(tool);
-                // Acrobat opens the Comments panel with the commenting tools.
-                if self.right.is_none() {
+                // Acrobat opens the Comments panel with the commenting tools, unless the user closed it.
+                if self.right.is_none() && !self.comments_panel_closed {
                     self.right = Some(RightPanel::Comments);
                 }
                 // A text selection made before picking a markup tool is marked right away.
@@ -464,7 +511,10 @@ impl PdfCraftApp {
                 if let Some(i) = active {
                     self.views[i].forms.focus = None;
                 }
-                self.notify_fmt("Click on the page to add a {tool}, or drag to set its size", &[("tool", &tl!(tool.label()).to_lowercase())]);
+                self.notify_fmt(
+                    "Click on the page to add a {tool}, or drag to set its size",
+                    &[("tool", &crate::i18n::in_sentence(tl!(tool.label())))],
+                );
             }
             "sign.fill.signature.remove" => self.signature = None,
             "sign.fill.initials.remove" => self.initials = None,
@@ -503,7 +553,7 @@ impl PdfCraftApp {
                 self.boxes_draft.seeded = None;
                 self.dialog = Some(Dialog::PageBoxes);
             }
-            "page.extract" => self.dialog = Some(Dialog::Extract),
+            "page.extract" => self.open_extract_dialog(),
             "page.rotate_dialog" => {
                 if let Some(i) = active {
                     let n = self.session.get(self.views[i].id).map_or(1, |d| d.info.pages.len());
@@ -565,18 +615,20 @@ impl PdfCraftApp {
 
 /// Render a top-level menu's registered commands (with live labels, shortcuts and enablement).
 pub(crate) fn registry_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui, menu: &str) {
-    let mac = cfg!(target_os = "macos") || cfg!(target_arch = "wasm32");
+    let mac = mac_shortcuts(ui.ctx());
     for spec in commands::menu(menu) {
         let label = commands::current_label(spec, &app.session, app.active_ids().map(|(_, id)| id));
         let label = crate::i18n::menu_label(spec.id, &label);
         // Open Recent is a submenu of the live recent list, not one action: disabled while the
-        // list is empty, otherwise each entry opens its file (or focuses the tab showing it).
+        // list is empty, otherwise each entry opens its file (or focuses the tab showing it), and
+        // Clear Recent Files at the foot empties the list (#430).
         if spec.id == "file.open_recent" {
             if app.recent.is_empty() {
                 ui.add_enabled(false, egui::Button::new(label));
                 continue;
             }
             let mut open: Option<String> = None;
+            let mut clear = false;
             ui.menu_button(label, |ui| {
                 for r in &app.recent {
                     if ui.button(&r.name).on_hover_text(&r.path).clicked() {
@@ -584,9 +636,18 @@ pub(crate) fn registry_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui, menu: &str
                         ui.close();
                     }
                 }
+                ui.separator();
+                if ui.button(tl!("Clear Recent Files")).clicked() {
+                    clear = true;
+                    ui.close();
+                }
             });
             if let Some(p) = open {
                 app.open_recent(&p);
+                ui.close();
+            }
+            if clear {
+                app.execute("file.clear_recent");
                 ui.close();
             }
             continue;

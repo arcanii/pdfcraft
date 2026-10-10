@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 pdfcraft-cos = { workspace = true }
 pdfcraft-fonts = { workspace = true }
+pdfcraft-model = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
