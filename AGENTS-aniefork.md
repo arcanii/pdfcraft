@@ -27,10 +27,10 @@ rules.
   are recorded in `ATTRIBUTION.toml`, and upstream changes them constantly). Translate from the
   meaning, with the words upstream's catalogs already use; never from Adobe's or another product's
   localisation.
-- **The exception: fixes on their way upstream.** What the fork carries today (see
-  `ROADMAP-aniefork.md`) are fixes to upstream's own code, written in upstream's style and edited
-  in place, because each is meant as a pull request. They are listed there file by file. A feature
-  that is meant to stay in the fork follows the rules above instead.
+- **The exception: fixes on their way upstream.** A fix to upstream's own code that is meant as a
+  pull request is written in upstream's style and edited in place. While the fork carries one, it
+  is listed file by file in `ROADMAP-aniefork.md`. A feature that is meant to stay in the fork
+  follows the rules above instead.
 - **A branch meant as an upstream pull request** follows upstream's rules, its progress documents
   included. Cut it from `upstream/main`, not from the fork's `main`, in a separate worktree: never
   switch this checkout to it. `ROADMAP-aniefork.md` has the steps.

@@ -13,32 +13,25 @@ The fork's rules are in [AGENTS-aniefork.md](AGENTS-aniefork.md); the sister for
 
 | | |
 |---|---|
-| Last merge of upstream | 2026-10-12, upstream `4701a00` (PdfCraft 0.6.0), merge commit `e1b5551` |
+| Last merge of upstream | 2026-10-13, upstream `0a09864` (PdfCraft 0.7.1), merge commit `c5cf18a` |
 | Fork is behind upstream by | 0 commits at that merge |
-| Fork carries | 1 change upstream lacks (below) |
+| Fork carries | Nothing: the tree differs from upstream's only by `AGENTS-aniefork.md` and this file |
 
 ## What the fork carries
 
-Changes in the fork that upstream does not have. Update the last column when one is offered or merged; delete the row once a merge of upstream brings it back.
-
-| Change | Fork commits | Upstream |
-|---|---|---|
-| The app says when a form's scripts were turned off: a toast, then the notice bar with a JavaScript Console button, and `xfa_scripts_off` in `doc_info`. | `03b2789`, with translations added in the merges `e4b2f7b` and `e1b5551` | Offered 2026-10-12: [storytold/pdfcraft#1251](https://github.com/storytold/pdfcraft/pull/1251), open. Branch `xfa-scripts-off-notice`: one commit, then upstream's `main` merged in on 2026-10-12 (`ffb2bb2`, upstream `fcf6e39`). |
+Changes in the fork that upstream does not have. **Nothing at present.** When there is one, list it in a table here (the change, the fork's commits, and where it stands upstream), update the last column when it is offered or merged, and delete the row once a merge of upstream brings it back.
 
 No longer carried, because upstream has them:
 
 - **The XFA script time limit:** the fork's change, merged upstream as [storytold/pdfcraft#1081](https://github.com/storytold/pdfcraft/pull/1081) on 2026-10-11 (`a7e24b9`).
+- **The scripts-off notice** (a toast, then the notice bar with a JavaScript Console button, and `xfa_scripts_off` in `doc_info`): the fork's change, merged upstream as [storytold/pdfcraft#1251](https://github.com/storytold/pdfcraft/pull/1251) on 2026-10-12 (`0e55d07`). The maintainer added the sentence to the Greek, Polish and Telugu catalogs.
 - **The minimum Rust version:** upstream raised it to 1.95 itself (`75b113a`, #1188). The fork's extra `rust-version.workspace = true` in every crate was dropped at the merge of 2026-10-12, so the manifests are upstream's.
 
 ## Changes in upstream files
 
-The change the fork carries is a fix to upstream's own code, edited in place in upstream's style, because it is meant as a pull request (the exception in `AGENTS-aniefork.md`). After merging upstream, check these are still there. When upstream takes it, the rows go.
+**None at present.** A fix to upstream's own code that is meant as a pull request is edited in place, in upstream's style (the exception in `AGENTS-aniefork.md`). While the fork carries one, list here the upstream files it touches, and check after each merge of upstream that the change is still there.
 
-| Change | Upstream files it touches |
-|---|---|
-| Scripts-off notice | `crates/engine/src/lib.rs` (`xfa_scripts_off`: the field, its accessor, and where `ran_away` is handled), `crates/automation/src/lib.rs` (`doc_info`), `crates/ui-egui/src/js_ui.rs` (`handle_js`, `scripts_off_notice`), `crates/ui-egui/src/canvas.rs` (`DocView::scripts_off_noted`, `Notice::Console`, and in `notices` the message ahead of the others and the JavaScript Console button inside `notice_bar`'s closure), their tests (`crates/ui-egui/tests/ui_group/xfa.rs`, `crates/engine/src/tests.rs`, `crates/automation/tests/automation.rs`), one sentence in 17 catalogs under `crates/ui-egui/src/i18n/`, those catalogs' hashes in `ATTRIBUTION.toml`, and `form.xfa-dynamic` in `parity/acrobat-features.toml` |
-
-This is where the fork departs from its own rules: a fork-private feature would keep its text in a table of its own and leave the catalogs, `ATTRIBUTION.toml` and `parity/` alone. Those three are what conflicts when upstream is merged, and every interface language upstream adds with a coverage test needs the sentence translated before the merge passes.
+Such a fix is where the fork departs from its own rules: a fork-private feature would keep its text in a table of its own and leave the catalogs, `ATTRIBUTION.toml` and `parity/` alone. Those three are what conflicts when upstream is merged, and every interface language upstream adds with a coverage test needs the fix's text translated before the merge passes. The scripts-off notice cost that at two merges (`e4b2f7b`, `e1b5551`) before upstream took it.
 
 ## Syncing with upstream
 
@@ -86,6 +79,7 @@ What upstream's merged pull requests look like, as of 2026-10-10: 88 of the last
 
 Newest first.
 
+- **2026-10-13 (merge of upstream 0.7.1; the fork carries nothing):** #1251 was merged upstream on 2026-10-12 as `0e55d07`, about five and a half hours after it was opened and fifteen minutes after the second refresh. The maintainer merged `main` into the branch himself and added the sentence to the Greek, Polish and Telugu catalogs. Merged 96 upstream commits (`0a09864`) into the fork as `c5cf18a`: the code merged by itself to upstream's text, and `ATTRIBUTION.toml` and `parity/acrobat-features.toml` are upstream's versions. The fork's tree now differs from upstream's only by `AGENTS-aniefork.md` and this file. `cargo xtask ci` passes on the merged tree (2,853 tests). The finished branches were deleted: `xfa-script-time-limit` and `xfa-scripts-off-notice` here and on GitHub, and the local `rust-version` (its one commit, `4168aef`, declared `rust-version` in every crate and was never offered).
 - **2026-10-12 (#1251 refreshed twice):** #1251 conflicted about three hours after it was opened (18 upstream commits; the catalog hashes and the progress log). It was rebased onto upstream `13637b8` and force-pushed (`071476a`), and conflicted again within the hour, so the second refresh merged upstream `fcf6e39` into the branch instead (`ffb2bb2`, no force); that one lasted about twenty minutes. Upstream's `main` was failing its own CI throughout: formatting in `viewer.rs` (#1283) and a clippy `type_complexity` (#1279), both fixed later, then an unused `mut` on Windows and a GoToR test that fails on Windows (#1265). With those set aside, the gate passes on `ffb2bb2` (2,732 tests pass; the one failure is upstream's GoToR test, which fails the same way on plain `main`). The maintainer merges `main` into contributors' branches when taking them up, so the branch is not being refreshed further unless the owner asks.
 - **2026-10-12 (second pull request to upstream):** The scripts-off notice was offered as [storytold/pdfcraft#1251](https://github.com/storytold/pdfcraft/pull/1251): one commit on upstream `84a75ea`, built from the state the fork's `main` already had after the merge and rebased over the six commits upstream had added since (only `ATTRIBUTION.toml` conflicted). `cargo xtask ci` passed on it (2,647 tests). Upstream's CI started at once this time. With it, everything the fork carries has been offered upstream.
 - **2026-10-12 (merge of upstream 0.6.0):** #1081 was merged upstream on 2026-10-11, unchanged, a few hours after it was opened. Merged 213 upstream commits (`4701a00`) into the fork as `e1b5551`. Two of the three carried changes are now upstream's: the time limit (#1081), and the minimum Rust version, which upstream raised itself; the fork's manifests and README went back to upstream's. `canvas.rs` conflicted as expected (upstream's `notice_bar`), `engine/src/lib.rs` trivially, and `ATTRIBUTION.toml` and `parity/` as always. Upstream had added coverage tests for Turkish, Czech, Slovene and Kazakh, so the notice was translated there, and had moved the UI tests into `tests/ui_group/`, which the parity evidence had to follow. `cargo xtask ci` passes on the merged tree (2,568 tests).
