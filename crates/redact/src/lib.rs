@@ -222,12 +222,13 @@ fn overlay_content(marks: &[&Mark]) -> Vec<u8> {
         // The overlay text: its font, colour and alignment; auto-sized to fit unless a size is
         // set; repeated to fill the area when asked.
         let look = &m.look;
-        let (res, width): (&str, fn(&str, f64) -> f64) = match look.font {
-            pdfcraft_annot::OverlayFont::Helvetica => ("PCHelv", pdfcraft_fonts::helvetica_width),
-            // Approximations of the standard metrics (no font program is bundled).
-            pdfcraft_annot::OverlayFont::Times => ("PCTimes", |s, size| pdfcraft_fonts::helvetica_width(s, size) * 0.9),
-            pdfcraft_annot::OverlayFont::Courier => ("PCCour", |s, size| s.chars().count() as f64 * size * 0.6),
+        // The published standard-14 metrics, so overlay text is measured as it will be drawn.
+        let (res, face) = match look.font {
+            pdfcraft_annot::OverlayFont::Helvetica => ("PCHelv", pdfcraft_fonts::Std14::Helvetica),
+            pdfcraft_annot::OverlayFont::Times => ("PCTimes", pdfcraft_fonts::Std14::TimesRoman),
+            pdfcraft_annot::OverlayFont::Courier => ("PCCour", pdfcraft_fonts::Std14::Courier),
         };
+        let width = move |s: &str, size: f64| face.text_width(s, size);
         let [cr, cg, cb] = look.color.map(|v| v.clamp(0.0, 1.0));
         for r in &m.rects {
             let (w, h) = (r[2] - r[0], r[3] - r[1]);
@@ -333,7 +334,7 @@ pub fn apply(doc: &mut Document, pages: Option<&[usize]>) -> Result<Report, Reda
             changed = true;
         }
         if changed || !out.xobjects.is_empty() || !out.replaced.is_empty() {
-            let mut res = resources;
+            let mut res = resources.clone();
             if !out.xobjects.is_empty() || !out.replaced.is_empty() {
                 let mut xo = res.get(b"XObject").and_then(|x| doc.resolve(x).as_dict().cloned()).unwrap_or_default();
                 // A full save keeps whatever is still referenced: unlink the originals this page no
@@ -358,8 +359,12 @@ pub fn apply(doc: &mut Document, pages: Option<&[usize]>) -> Result<Report, Reda
             // Tags must not keep what the page no longer shows.
             let after = doc.get(page.obj).as_dict().cloned().unwrap_or_default();
             let (_, new_data) = page_streams(doc, &after, pi)?;
-            let (changed_ids, empty_ids) = tags::touched(&data.join(&b'\n'), &new_data.join(&b'\n'));
-            report.tags += tags::clean(doc, page.obj, &changed_ids, &empty_ids)?;
+            let (changed_ids, empty_ids) = tags::touched(doc, &resources, &data.join(&b'\n'), &new_data.join(&b'\n'));
+            report.tags += tags::clean(doc, page.obj, None, &changed_ids, &empty_ids)?;
+        }
+
+        for (old, new, changed, empty) in out.tag_changes {
+            report.tags += tags::clean(doc, page.obj, Some((old, new)), &changed, &empty)?;
         }
 
         // 2. Annotations: the marks, and whatever lies under them (with their pop-ups).
