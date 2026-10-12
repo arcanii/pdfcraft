@@ -4,7 +4,6 @@ description = "Calibrated 2D PDF measurements, viewports and snapping"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-rust-version.workspace = true
 
 [lints]
 workspace = true

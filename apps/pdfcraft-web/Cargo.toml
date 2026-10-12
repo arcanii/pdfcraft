@@ -4,7 +4,6 @@ description = "PdfCraft in the browser (wasm32; build with `trunk build --releas
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-rust-version.workspace = true
 publish = false
 
 [lints]
@@ -17,5 +16,5 @@ egui = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "HtmlElement", "Location", "Url", "UrlSearchParams", "Response"] }
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "HtmlElement", "Location", "Url", "UrlSearchParams", "Response", "Event", "MessageEvent", "EventTarget"] }
 js-sys = "0.3"

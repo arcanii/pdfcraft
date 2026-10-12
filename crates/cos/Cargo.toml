@@ -4,7 +4,6 @@ description = "PDF object layer: lazy tolerant parsing, copy-on-write edits, inc
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-rust-version.workspace = true
 
 [lints]
 workspace = true
