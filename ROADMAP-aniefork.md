@@ -13,9 +13,10 @@ The fork's rules are in [AGENTS-aniefork.md](AGENTS-aniefork.md); the sister for
 
 | | |
 |---|---|
-| Last merge of upstream | 2026-10-13, upstream `0a09864` (PdfCraft 0.7.1), merge commit `c5cf18a` |
+| Last merge of upstream | 2026-10-13, upstream `dfa43be` (PdfCraft 0.7.1), merge commit `6cfece7` |
 | Fork is behind upstream by | 0 commits at that merge |
 | Fork carries | Nothing: the tree differs from upstream's only by `AGENTS-aniefork.md` and this file |
+| Gate at that merge | **Failing, as upstream's own `main` is:** 14 UI tests about opening a document (see the log). Everything else passes |
 
 ## What the fork carries
 
@@ -50,6 +51,8 @@ Sync often: upstream lands dozens of commits a day, and small merges are easy. W
 
 After a merge, run `cargo xtask ci` before committing it (with `CARGO_TARGET_DIR` on a local disk it takes about ten minutes), and update the tables above.
 
+**When the gate fails on a merge and the fork carries no code,** the failure is upstream's: confirm it on upstream's CI (`gh run list --repo storytold/pdfcraft --workflow CI`; a pull request's run shows what `main` does when `main`'s own runs were all cancelled), run the rest with `cargo test --workspace --no-fail-fast` and the other `xtask` steps one by one, and ask the owner whether to commit anyway or wait. On 2026-10-13 the owner chose to commit, with the failures written into the merge commit and the log.
+
 ## Sending changes upstream
 
 Only when the owner asks for it, one topic per pull request. How the sister forks do it (storytold/gridcraft#265 and #266, storytold/wordcraft#570 and #571), which pdfcraft follows:
@@ -79,6 +82,7 @@ What upstream's merged pull requests look like, as of 2026-10-10: 88 of the last
 
 Newest first.
 
+- **2026-10-13 (second merge of the day; upstream's own tests fail):** Merged 50 more upstream commits (`dfa43be`) as `6cfece7`, with no conflicts. **The gate does not pass, and the owner decided to commit anyway.** Upstream's #1493 (`55f76ab`) moved opening a document onto a worker thread, and 14 of upstream's UI tests still look for the open document after a fixed number of frames: in `crates/ui-egui/tests`, `commands` (1), `document_links` (2), `editing` (2), `pickers` (3), `recovery` (5) and `ui` (1). Upstream's CI fails the same way on Linux and Windows; it stops at the first failing test binary, so it shows only the first of them. One of the tests that opens a file this way passes on most runs, and the worker's own tests pass, so this reads as tests that do not wait, not as the app failing to open files; that was not checked in the running app. Everything else passes: fmt, clippy, layers, wasm, assets, deny, parity and 2,964 tests. Until upstream fixes it, a gate run on the fork's `main` fails on these tests whatever else is changed.
 - **2026-10-13 (merge of upstream 0.7.1; the fork carries nothing):** #1251 was merged upstream on 2026-10-12 as `0e55d07`, about five and a half hours after it was opened and fifteen minutes after the second refresh. The maintainer merged `main` into the branch himself and added the sentence to the Greek, Polish and Telugu catalogs. Merged 96 upstream commits (`0a09864`) into the fork as `c5cf18a`: the code merged by itself to upstream's text, and `ATTRIBUTION.toml` and `parity/acrobat-features.toml` are upstream's versions. The fork's tree now differs from upstream's only by `AGENTS-aniefork.md` and this file. `cargo xtask ci` passes on the merged tree (2,853 tests). The finished branches were deleted: `xfa-script-time-limit` and `xfa-scripts-off-notice` here and on GitHub, and the local `rust-version` (its one commit, `4168aef`, declared `rust-version` in every crate and was never offered).
 - **2026-10-12 (#1251 refreshed twice):** #1251 conflicted about three hours after it was opened (18 upstream commits; the catalog hashes and the progress log). It was rebased onto upstream `13637b8` and force-pushed (`071476a`), and conflicted again within the hour, so the second refresh merged upstream `fcf6e39` into the branch instead (`ffb2bb2`, no force); that one lasted about twenty minutes. Upstream's `main` was failing its own CI throughout: formatting in `viewer.rs` (#1283) and a clippy `type_complexity` (#1279), both fixed later, then an unused `mut` on Windows and a GoToR test that fails on Windows (#1265). With those set aside, the gate passes on `ffb2bb2` (2,732 tests pass; the one failure is upstream's GoToR test, which fails the same way on plain `main`). The maintainer merges `main` into contributors' branches when taking them up, so the branch is not being refreshed further unless the owner asks.
 - **2026-10-12 (second pull request to upstream):** The scripts-off notice was offered as [storytold/pdfcraft#1251](https://github.com/storytold/pdfcraft/pull/1251): one commit on upstream `84a75ea`, built from the state the fork's `main` already had after the merge and rebased over the six commits upstream had added since (only `ATTRIBUTION.toml` conflicted). `cargo xtask ci` passed on it (2,647 tests). Upstream's CI started at once this time. With it, everything the fork carries has been offered upstream.
